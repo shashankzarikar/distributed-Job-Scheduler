@@ -211,4 +211,50 @@ public class JobService {
         ScheduledJob saved = scheduledJobRepository.save(scheduledJob);
         return toScheduledJobResponse(saved);
     }
+    @Transactional
+    public JobResponse createBatchJob(User currentUser, Long queueId, CreateBatchJobRequest request) {
+        Queue queue = getQueueAndCheckAccess(currentUser, queueId, ProjectMember.Role.MEMBER);
+
+        // Parent job — holds no payload of its own, just tracks overall batch progress
+        Job parent = new Job();
+        parent.setQueue(queue);
+        parent.setType(Job.Type.BATCH);
+        parent.setStatus(Job.Status.QUEUED);
+        parent.setPriority(request.getPriority() != null ? request.getPriority() : queue.getPriority());
+        parent.setRetryPolicy(queue.getRetryPolicy());
+        parent.setMaxAttempts(request.getMaxAttempts() != null ? request.getMaxAttempts() : 5);
+        parent.setRunAfter(LocalDateTime.now());
+        parent.setTotalChildren(request.getChildren().size());
+
+        Job savedParent = jobRepository.save(parent);
+
+        for (ChildJobPayload childPayload : request.getChildren()) {
+            checkIdempotencyKeyAvailable(null); // children don't carry idempotencyKey per current DTO — no-op, kept for clarity
+
+            Job child = new Job();
+            child.setQueue(queue);
+            child.setParentJob(savedParent);
+            child.setType(Job.Type.IMMEDIATE); // children execute as ordinary immediate jobs
+            child.setStatus(Job.Status.QUEUED);
+            child.setPayload(writePayload(childPayload.getPayload()));
+            child.setPriority(childPayload.getPriority() != null ? childPayload.getPriority() : parent.getPriority());
+            child.setRetryPolicy(queue.getRetryPolicy());
+            child.setMaxAttempts(childPayload.getMaxAttempts() != null ? childPayload.getMaxAttempts() : parent.getMaxAttempts());
+            child.setRunAfter(LocalDateTime.now());
+
+            jobRepository.save(child);
+        }
+
+        return toJobResponse(savedParent);
+    }
+    @Transactional(readOnly = true)
+    public Page<JobResponse> listJobs(User currentUser, Long queueId, Job.Status statusFilter, Pageable pageable) {
+        Queue queue = getQueueAndCheckAccess(currentUser, queueId, ProjectMember.Role.VIEWER);
+
+        Page<Job> jobs = (statusFilter != null)
+                ? jobRepository.findByQueueIdAndStatus(queue.getId(), statusFilter, pageable)
+                : jobRepository.findByQueueId(queue.getId(), pageable);
+
+        return jobs.map(this::toJobResponse);
+    }
 }
