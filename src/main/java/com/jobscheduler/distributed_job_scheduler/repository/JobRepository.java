@@ -1,6 +1,8 @@
 package com.jobscheduler.distributed_job_scheduler.repository;
 
 import com.jobscheduler.distributed_job_scheduler.entity.Job;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -8,17 +10,11 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface JobRepository extends JpaRepository<Job, Long> {
 
-    /**
-     * Atomic job claiming. SELECT ... FOR UPDATE SKIP LOCKED locks the returned rows
-     * and skips any rows already locked by another concurrent transaction (another worker).
-     * This guarantees two workers can never claim the same job.
-     *
-     * nativeQuery = true because SKIP LOCKED is not part of standard JPQL.
-     */
     @Query(value = """
             SELECT * FROM jobs
             WHERE queue_id = :queueId
@@ -30,10 +26,6 @@ public interface JobRepository extends JpaRepository<Job, Long> {
             """, nativeQuery = true)
     List<Job> findClaimableJobs(@Param("queueId") Long queueId, @Param("limit") int limit);
 
-    /**
-     * Reaper query: finds jobs stuck RUNNING whose worker has gone silent
-     * (no heartbeat within the configured timeout window).
-     */
     @Query("""
             SELECT j FROM Job j
             WHERE j.status = com.jobscheduler.distributed_job_scheduler.entity.Job.Status.RUNNING
@@ -44,4 +36,12 @@ public interface JobRepository extends JpaRepository<Job, Long> {
     List<Job> findByParentJobId(Long parentJobId);
 
     List<Job> findByQueueIdAndStatus(Long queueId, Job.Status status);
+
+    // Job Explorer / listing endpoint — paginated, optionally filtered by status
+    Page<Job> findByQueueId(Long queueId, Pageable pageable);
+
+    Page<Job> findByQueueIdAndStatus(Long queueId, Job.Status status, Pageable pageable);
+
+    // Idempotency check — used by JobService before creating a new job
+    Optional<Job> findByIdempotencyKey(String idempotencyKey);
 }

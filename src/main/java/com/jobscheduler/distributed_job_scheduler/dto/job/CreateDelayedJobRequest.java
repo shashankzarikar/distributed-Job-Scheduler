@@ -4,7 +4,6 @@ import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -13,6 +12,8 @@ import java.time.Instant;
 import java.util.Map;
 
 // Exactly one of delaySeconds / runAfter must be set — validated in JobService.
+// No idempotencyKey: scheduled_jobs has no such column; idempotency is only
+// enforced for job types that go straight into the jobs table (immediate, batch).
 @Getter
 @Setter
 @NoArgsConstructor
@@ -28,9 +29,6 @@ public class CreateDelayedJobRequest {
     private Instant runAfter;
 
     private Integer priority;
-
-    @Size(max = 255, message = "idempotencyKey must be at most 255 characters")
-    private String idempotencyKey;
 
     @Min(value = 1, message = "maxAttempts must be at least 1")
     private Integer maxAttempts;
