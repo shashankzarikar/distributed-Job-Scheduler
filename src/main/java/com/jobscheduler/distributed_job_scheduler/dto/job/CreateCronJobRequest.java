@@ -1,6 +1,5 @@
 package com.jobscheduler.distributed_job_scheduler.dto.job;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -22,7 +21,4 @@ public class CreateCronJobRequest {
     private String cronExpression;
 
     private Integer priority;
-
-    @Min(value = 1, message = "maxAttempts must be at least 1")
-    private Integer maxAttempts;
 }

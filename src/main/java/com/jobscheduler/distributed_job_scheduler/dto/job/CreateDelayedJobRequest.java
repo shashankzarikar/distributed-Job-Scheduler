@@ -1,7 +1,6 @@
 package com.jobscheduler.distributed_job_scheduler.dto.job;
 
 import jakarta.validation.constraints.Future;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.Getter;
@@ -12,8 +11,8 @@ import java.time.Instant;
 import java.util.Map;
 
 // Exactly one of delaySeconds / runAfter must be set — validated in JobService.
-// No idempotencyKey: scheduled_jobs has no such column; idempotency is only
-// enforced for job types that go straight into the jobs table (immediate, batch).
+// No idempotencyKey or maxAttempts: scheduled_jobs has neither column.
+// Both apply only once the job is promoted into the jobs table (Step E).
 @Getter
 @Setter
 @NoArgsConstructor
@@ -29,7 +28,4 @@ public class CreateDelayedJobRequest {
     private Instant runAfter;
 
     private Integer priority;
-
-    @Min(value = 1, message = "maxAttempts must be at least 1")
-    private Integer maxAttempts;
 }
