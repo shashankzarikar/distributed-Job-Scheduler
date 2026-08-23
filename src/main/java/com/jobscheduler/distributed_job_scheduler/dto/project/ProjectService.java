@@ -63,6 +63,7 @@ public class ProjectService {
     /**
      * Lists only the projects the current user is actually a member of.
      */
+    @Transactional(readOnly = true)
     public List<ProjectResponse> listMyProjects(User currentUser) {
         return projectMemberRepository.findAll().stream()
                 .filter(pm -> pm.getUser().getId().equals(currentUser.getId()))
@@ -103,7 +104,7 @@ public class ProjectService {
 
         return new ProjectMemberResponse(targetUser.getId(), targetUser.getName(), targetUser.getEmail(), member.getRole());
     }
-
+    @Transactional(readOnly = true)
     public List<ProjectMemberResponse> listMembers(User currentUser, Long projectId) {
         requireMembership(currentUser, projectId); // any role can view the member list
 
