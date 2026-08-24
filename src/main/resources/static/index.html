@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Job Scheduler — Login</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="auth-container">
+    <h1>Distributed Job Scheduler</h1>
+    <p class="subtitle">Sign in to manage your projects and queues</p>
+
+    <div class="tab-toggle">
+        <button id="tab-login" class="active" onclick="showTab('login')">Login</button>
+        <button id="tab-register" onclick="showTab('register')">Register</button>
+    </div>
+
+    <form id="login-form">
+        <label>Email</label>
+        <input type="email" id="login-email" required>
+        <label>Password</label>
+        <input type="password" id="login-password" required>
+        <button type="submit" style="width:100%; margin-top:16px;">Log in</button>
+    </form>
+
+    <form id="register-form" style="display:none;">
+        <label>Name</label>
+        <input type="text" id="reg-name" required>
+        <label>Email</label>
+        <input type="email" id="reg-email" required>
+        <label>Password</label>
+        <input type="password" id="reg-password" minlength="8" required>
+        <button type="submit" style="width:100%; margin-top:16px;">Create account</button>
+    </form>
+
+    <div id="error-box" class="error-box" style="display:none;"></div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+    // If already logged in, skip straight to the dashboard.
+    if (getToken()) window.location.href = '/dashboard.html';
+
+    function showTab(tab) {
+        document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
+        document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none';
+        document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+        document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+        document.getElementById('error-box').style.display = 'none';
+    }
+
+    function showError(message) {
+        const box = document.getElementById('error-box');
+        box.textContent = message;
+        box.style.display = 'block';
+    }
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            await login(
+                document.getElementById('login-email').value,
+                document.getElementById('login-password').value
+            );
+            window.location.href = '/dashboard.html';
+        } catch (err) {
+            showError(err.message);
+        }
+    });
+
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            await register(
+                document.getElementById('reg-name').value,
+                document.getElementById('reg-email').value,
+                document.getElementById('reg-password').value
+            );
+            window.location.href = '/dashboard.html';
+        } catch (err) {
+            showError(err.message);
+        }
+    });
+</script>
+</body>
+</html>
