@@ -6,4 +6,8 @@ import java.util.List;
 
 public interface QueueRepository extends JpaRepository<Queue, Long> {
     List<Queue> findByProjectId(Long projectId);
+
+    // WorkerEngine polls across ALL active queues system-wide (a worker
+    // isn't scoped to one project) — paused queues are correctly skipped.
+    List<Queue> findByStatus(Queue.Status status);
 }
