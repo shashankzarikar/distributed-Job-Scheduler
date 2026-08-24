@@ -6,6 +6,7 @@ import com.jobscheduler.distributed_job_scheduler.entity.Worker;
 import com.jobscheduler.distributed_job_scheduler.repository.QueueRepository;
 import com.jobscheduler.distributed_job_scheduler.repository.JobRepository;
 import com.jobscheduler.distributed_job_scheduler.repository.WorkerRepository;
+import com.jobscheduler.distributed_job_scheduler.websocket.EventPublisher;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +35,7 @@ public class WorkerEngine {
     private final JobExecutor jobExecutor;
     private final JobOutcomeHandler outcomeHandler;
     private final JobLifecycleService lifecycleService;
+    private final EventPublisher eventPublisher; // [NEW - Step G]
 
     private final int poolSize;
     private final long heartbeatIntervalMs;
@@ -50,6 +52,7 @@ public class WorkerEngine {
             JobExecutor jobExecutor,
             JobOutcomeHandler outcomeHandler,
             JobLifecycleService lifecycleService,
+            EventPublisher eventPublisher,
             @Value("${app.worker.pool-size:5}") int poolSize,
             @Value("${app.worker.heartbeat-interval-ms:10000}") long heartbeatIntervalMs
     ) {
@@ -59,6 +62,7 @@ public class WorkerEngine {
         this.jobExecutor = jobExecutor;
         this.outcomeHandler = outcomeHandler;
         this.lifecycleService = lifecycleService;
+        this.eventPublisher = eventPublisher;
         this.poolSize = poolSize;
         this.heartbeatIntervalMs = heartbeatIntervalMs;
     }
@@ -74,8 +78,10 @@ public class WorkerEngine {
         worker.setName("worker-" + UUID.randomUUID().toString().substring(0, 8));
         worker.setStatus(Worker.Status.ACTIVE);
         worker.setLastHeartbeatAt(LocalDateTime.now());
-        this.workerId = workerRepository.save(worker).getId();
+        worker = workerRepository.save(worker);
+        this.workerId = worker.getId();
 
+        eventPublisher.publishWorkerEvent(worker);
         log.info("WorkerEngine started: workerId={}, poolSize={}", workerId, poolSize);
     }
 
@@ -99,6 +105,7 @@ public class WorkerEngine {
         workerRepository.findById(workerId).ifPresent(w -> {
             w.setStatus(Worker.Status.SHUTDOWN);
             workerRepository.save(w);
+            eventPublisher.publishWorkerEvent(w);
         });
 
         log.info("WorkerEngine shut down cleanly (workerId={})", workerId);

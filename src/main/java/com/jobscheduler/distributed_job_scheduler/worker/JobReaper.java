@@ -4,6 +4,7 @@ import com.jobscheduler.distributed_job_scheduler.entity.Job;
 import com.jobscheduler.distributed_job_scheduler.entity.Worker;
 import com.jobscheduler.distributed_job_scheduler.repository.JobRepository;
 import com.jobscheduler.distributed_job_scheduler.repository.WorkerRepository;
+import com.jobscheduler.distributed_job_scheduler.websocket.EventPublisher;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -25,16 +26,19 @@ public class JobReaper {
     private final WorkerRepository workerRepository;
     private final JobOutcomeHandler outcomeHandler;
     private final int timeoutSeconds;
+    private final EventPublisher eventPublisher;
 
     public JobReaper(
             JobRepository jobRepository,
             WorkerRepository workerRepository,
             JobOutcomeHandler outcomeHandler,
+            EventPublisher eventPublisher, // [NEW - Step G]
             @Value("${app.worker.heartbeat-timeout-seconds:30}") int timeoutSeconds
     ) {
         this.jobRepository = jobRepository;
         this.workerRepository = workerRepository;
         this.outcomeHandler = outcomeHandler;
+        this.eventPublisher = eventPublisher;
         this.timeoutSeconds = timeoutSeconds;
     }
 
@@ -70,6 +74,7 @@ public class JobReaper {
             if (w.getStatus() == Worker.Status.ACTIVE) {
                 w.setStatus(Worker.Status.UNRESPONSIVE);
                 workerRepository.save(w);
+                eventPublisher.publishWorkerEvent(w);
                 log.warn("Marked worker id={} UNRESPONSIVE (stale job id={})", workerId, job.getId());
             }
         });

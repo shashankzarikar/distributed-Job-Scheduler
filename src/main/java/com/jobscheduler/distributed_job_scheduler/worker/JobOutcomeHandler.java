@@ -1,7 +1,9 @@
 package com.jobscheduler.distributed_job_scheduler.worker;
 
+import com.jobscheduler.distributed_job_scheduler.dto.websocket.JobEventMessage;
 import com.jobscheduler.distributed_job_scheduler.entity.*;
 import com.jobscheduler.distributed_job_scheduler.repository.*;
+import com.jobscheduler.distributed_job_scheduler.websocket.EventPublisher;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,20 +29,23 @@ public class JobOutcomeHandler {
     private final DeadLetterQueueRepository deadLetterQueueRepository;
     private final RetryCalculator retryCalculator;
 
+    private final EventPublisher eventPublisher;
+
     public JobOutcomeHandler(
             JobRepository jobRepository,
             JobExecutionRepository jobExecutionRepository,
             JobLogRepository jobLogRepository,
             DeadLetterQueueRepository deadLetterQueueRepository,
-            RetryCalculator retryCalculator
+            RetryCalculator retryCalculator,
+            EventPublisher eventPublisher
     ) {
         this.jobRepository = jobRepository;
         this.jobExecutionRepository = jobExecutionRepository;
         this.jobLogRepository = jobLogRepository;
         this.deadLetterQueueRepository = deadLetterQueueRepository;
         this.retryCalculator = retryCalculator;
+        this.eventPublisher = eventPublisher;
     }
-
     @Transactional
     public void handleSuccess(Long jobId, Long executionId) {
         Job job = jobRepository.findById(jobId)
@@ -59,6 +64,7 @@ public class JobOutcomeHandler {
         }
 
         writeLog(job, JobLog.Level.INFO, "Job completed successfully");
+        eventPublisher.publishJobEvent(job, JobEventMessage.EventType.COMPLETED, null, null);
 
         if (job.getParentJob() != null) {
             onChildResolved(job.getParentJob().getId(), true);
@@ -113,6 +119,7 @@ public class JobOutcomeHandler {
 
             writeLog(job, JobLog.Level.ERROR,
                     "Job moved to Dead Letter Queue after " + newAttemptCount + " attempt(s): " + reason);
+            eventPublisher.publishJobEvent(job, JobEventMessage.EventType.DEAD_LETTER, null, reason);
 
             if (job.getParentJob() != null) {
                 onChildResolved(job.getParentJob().getId(), false);
@@ -124,9 +131,10 @@ public class JobOutcomeHandler {
             job.setRunAfter(LocalDateTime.now().plusSeconds(delaySeconds));
             jobRepository.save(job);
 
-            writeLog(job, JobLog.Level.WARN,
-                    "Attempt " + newAttemptCount + "/" + job.getMaxAttempts() + " failed (" + reason
-                            + "); retrying in " + delaySeconds + "s");
+            String detail = "Attempt " + newAttemptCount + "/" + job.getMaxAttempts() + " failed (" + reason
+                    + "); retrying in " + delaySeconds + "s";
+            writeLog(job, JobLog.Level.WARN, detail);
+            eventPublisher.publishJobEvent(job, JobEventMessage.EventType.RETRY_SCHEDULED, null, detail);
         }
     }
 
@@ -146,6 +154,7 @@ public class JobOutcomeHandler {
         }
 
         int resolvedCount = parent.getCompletedChildren() + parent.getFailedChildren();
+        boolean justResolved = false;
         if (resolvedCount >= parent.getTotalChildren()) {
             if (parent.getFailedChildren() == 0) {
                 parent.setStatus(Job.Status.COMPLETED);
@@ -154,9 +163,14 @@ public class JobOutcomeHandler {
             } else {
                 parent.setStatus(Job.Status.PARTIALLY_FAILED);
             }
+            justResolved = true;
         }
 
         jobRepository.save(parent);
+
+        if (justResolved) {
+            eventPublisher.publishJobEvent(parent, JobEventMessage.EventType.BATCH_RESOLVED, null, null);
+        }
     }
 
     private void writeLog(Job job, JobLog.Level level, String message) {
