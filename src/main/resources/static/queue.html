@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Queue — Job Scheduler</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="topbar">
+    <div class="brand">Job Scheduler</div>
+    <nav>
+        <a href="/dashboard.html" id="back-link">← Dashboard</a>
+        <a href="/workers.html">Workers</a>
+        <a href="#" onclick="logout(); return false;">Logout</a>
+    </nav>
+</div>
+
+<div class="container">
+    <div class="flex-between">
+        <h1 id="queue-title">Queue</h1>
+        <div>
+            <span class="live-dot" id="live-dot"></span>
+            <span class="small" id="live-label">Connecting…</span>
+        </div>
+    </div>
+
+    <div id="stats-row" class="stat-row"></div>
+
+    <div class="flex-between" style="margin-top:20px;">
+        <h2>Jobs</h2>
+        <button onclick="toggleCreateJob()">+ New Immediate Job</button>
+    </div>
+
+    <form id="create-job-form" style="display:none; max-width:420px; margin-bottom:16px;">
+        <label>Task name</label>
+        <input type="text" id="job-task-name" placeholder="e.g. send-welcome-email">
+
+        <label>Extra fields (optional)</label>
+        <div id="job-fields-list"></div>
+        <button type="button" class="secondary" style="margin-top:6px; padding:6px 10px; font-size:12px;" onclick="addJobField()">+ Add field</button>
+
+        <label>Priority (optional)</label>
+        <input type="number" id="new-job-priority" placeholder="defaults to queue priority">
+        <button type="submit" style="margin-top:12px;">Create Job</button>
+        <div id="create-job-error" class="error-box" style="display:none;"></div>
+    </form>
+
+    <div id="jobs-table-container"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/queue.js"></script>
+</body>
+</html>

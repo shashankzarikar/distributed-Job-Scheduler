@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Workers — Job Scheduler</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="topbar">
+    <div class="brand">Job Scheduler</div>
+    <nav>
+        <a href="/dashboard.html">Dashboard</a>
+        <a href="/workers.html" class="active">Workers</a>
+        <a href="#" onclick="logout(); return false;">Logout</a>
+    </nav>
+</div>
+
+<div class="container">
+    <div class="flex-between">
+        <h1>Workers</h1>
+        <div>
+            <span class="live-dot" id="live-dot"></span>
+            <span class="small" id="live-label">Connecting…</span>
+        </div>
+    </div>
+
+    <div id="workers-list" style="margin-top:16px;"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/workers.js"></script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard — Job Scheduler</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="topbar">
+    <div class="brand">Job Scheduler <span id="user-email"></span></div>
+    <nav>
+        <a href="/dashboard.html" class="active">Dashboard</a>
+        <a href="/workers.html">Workers</a>
+        <a href="#" onclick="logout(); return false;">Logout</a>
+    </nav>
+</div>
+
+<div class="container">
+    <div class="flex-between">
+        <h1>Your Projects</h1>
+        <button onclick="toggleCreateProject()">+ New Project</button>
+    </div>
+
+    <form id="create-project-form" style="display:none; max-width:360px; margin-top:14px;">
+        <label>Project name</label>
+        <input type="text" id="new-project-name" required>
+        <button type="submit" style="margin-top:12px;">Create</button>
+        <div id="create-project-error" class="error-box" style="display:none;"></div>
+    </form>
+
+    <div id="projects-list" class="card-grid"></div>
+
+    <div id="project-detail" style="display:none;">
+        <h2 id="project-detail-name" style="margin-top:40px;"></h2>
+
+        <div class="tab-toggle" style="width:260px;">
+            <button id="tab-queues" class="active" onclick="showTabPanel('queues')">Queues</button>
+            <button id="tab-members" onclick="showTabPanel('members')">Members</button>
+        </div>
+
+        <div id="queues-panel">
+            <div class="flex-between">
+                <h2>Queues</h2>
+                <button id="create-queue-btn" onclick="toggleCreateQueue()">+ New Queue</button>
+            </div>
+
+            <form id="create-queue-form" style="display:none; max-width:360px; margin-bottom:16px;">
+                <label>Queue name</label>
+                <input type="text" id="new-queue-name" required>
+                <label>Priority</label>
+                <input type="number" id="new-queue-priority" value="0">
+                <label>Concurrency limit</label>
+                <input type="number" id="new-queue-concurrency" value="5" min="1">
+                <button type="submit" style="margin-top:12px;">Create</button>
+                <div id="create-queue-error" class="error-box" style="display:none;"></div>
+            </form>
+
+            <div id="queues-list" class="card-grid"></div>
+        </div>
+
+        <div id="members-panel" style="display:none;">
+            <div class="flex-between">
+                <h2>Members</h2>
+                <button id="add-member-btn" onclick="toggleAddMember()">+ Add Member</button>
+            </div>
+
+            <form id="add-member-form" style="display:none; max-width:360px; margin-bottom:16px;">
+                <label>Email</label>
+                <input type="email" id="new-member-email" required>
+                <label>Role</label>
+                <select id="new-member-role">
+                    <option value="MEMBER">Member</option>
+                    <option value="VIEWER">Viewer</option>
+                    <option value="OWNER">Owner</option>
+                </select>
+                <button type="submit" style="margin-top:12px;">Add</button>
+                <div id="add-member-error" class="error-box" style="display:none;"></div>
+            </form>
+
+            <div id="members-list"></div>
+        </div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/dashboard.js"></script>
+</body>
+</html>
