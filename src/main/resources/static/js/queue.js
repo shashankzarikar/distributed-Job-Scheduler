@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     document.getElementById('queue-title').textContent = queueName;
     document.getElementById('back-link').href = projectId ? `/dashboard.html` : '/dashboard.html';
+    document.getElementById('dlq-link').href = `/dlq.html?queueId=${queueId}&queueName=${encodeURIComponent(queueName)}`;
 
     loadJobs();
     loadStats();

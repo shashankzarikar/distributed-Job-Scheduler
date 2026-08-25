@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dead Letter Queue — Job Scheduler</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="topbar">
+    <div class="brand">Job Scheduler</div>
+    <nav>
+        <a href="/dashboard.html">Dashboard</a>
+        <a href="/workers.html">Workers</a>
+        <a href="#" onclick="logout(); return false;">Logout</a>
+    </nav>
+</div>
+
+<div class="container">
+    <div class="flex-between">
+        <h1 id="dlq-title">Dead Letter Queue</h1>
+        <a id="back-link" href="/dashboard.html"><button class="secondary">← Back to Queue</button></a>
+    </div>
+    <p class="small" style="margin-top:4px;">Jobs that exhausted all retry attempts. Retrying resets a job to QUEUED with a fresh attempt count.</p>
+
+    <div id="dlq-table-container" style="margin-top:16px;"></div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/dlq.js"></script>
+</body>
+</html>
