@@ -1,10 +1,13 @@
 package com.jobscheduler.distributed_job_scheduler.service;
 
 import com.jobscheduler.distributed_job_scheduler.dto.job.*;
+import com.jobscheduler.distributed_job_scheduler.dto.websocket.JobEventMessage;
 import com.jobscheduler.distributed_job_scheduler.entity.*;
+import com.jobscheduler.distributed_job_scheduler.repository.DeadLetterQueueRepository;
 import com.jobscheduler.distributed_job_scheduler.repository.JobRepository;
 import com.jobscheduler.distributed_job_scheduler.repository.QueueRepository;
 import com.jobscheduler.distributed_job_scheduler.repository.ScheduledJobRepository;
+import com.jobscheduler.distributed_job_scheduler.websocket.EventPublisher;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import org.springframework.data.domain.Page;
@@ -14,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -22,21 +26,27 @@ public class JobService {
     private final JobRepository jobRepository;
     private final ScheduledJobRepository scheduledJobRepository;
     private final QueueRepository queueRepository;
+    private final DeadLetterQueueRepository deadLetterQueueRepository;
     private final com.jobscheduler.distributed_job_scheduler.service.ProjectService projectService; // reuse RBAC checks, same pattern as QueueService
     private final ObjectMapper objectMapper;      // serialize/deserialize the JSON payload column
+    private final EventPublisher eventPublisher;
 
     public JobService(
             JobRepository jobRepository,
             ScheduledJobRepository scheduledJobRepository,
             QueueRepository queueRepository,
+            DeadLetterQueueRepository deadLetterQueueRepository,
             com.jobscheduler.distributed_job_scheduler.service.ProjectService projectService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            EventPublisher eventPublisher
     ) {
         this.jobRepository = jobRepository;
         this.scheduledJobRepository = scheduledJobRepository;
         this.queueRepository = queueRepository;
+        this.deadLetterQueueRepository = deadLetterQueueRepository;
         this.projectService = projectService;
         this.objectMapper = objectMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -256,5 +266,81 @@ public class JobService {
                 : jobRepository.findByQueueId(queue.getId(), pageable);
 
         return jobs.map(this::toJobResponse);
+    }
+
+    /**
+     * Lists dead-lettered jobs for a queue. Filters to jobs whose status is
+     * *currently* DEAD_LETTER — a job that was manually retried and has since
+     * succeeded (or dead-lettered a second time) shouldn't clutter the active
+     * DLQ view with its stale first-attempt record.
+     */
+    @Transactional(readOnly = true)
+    public List<DeadLetterQueueResponse> listDeadLetterQueue(User currentUser, Long queueId) {
+        Queue queue = getQueueAndCheckAccess(currentUser, queueId, ProjectMember.Role.VIEWER);
+
+        return deadLetterQueueRepository.findByJob_Queue_Id(queue.getId()).stream()
+                .filter(dlq -> dlq.getJob().getStatus() == Job.Status.DEAD_LETTER)
+                .map(this::toDeadLetterQueueResponse)
+                .toList();
+    }
+
+    /**
+     * Manually retries a dead-lettered job: resets it to QUEUED with a clean
+     * attempt count (a manual retry is a deliberate human decision to give the
+     * job a fresh full set of attempts, not just "undo the last failure") and
+     * marks the DLQ record as retriedManually. Broadcasts the same
+     * RETRY_SCHEDULED event the automatic retry path uses (JobOutcomeHandler),
+     * so queue.html's live feed picks this up with no extra frontend work.
+     *
+     * Known edge case, not fixed here (out of scope for this endpoint): if the
+     * retried job fails and exhausts attempts again, JobOutcomeHandler.applyFailure
+     * will attempt to INSERT a second DeadLetterQueue row for the same job_id,
+     * which violates DeadLetterQueue's unique job_id constraint. Flagged as a
+     * follow-up for JobOutcomeHandler, not addressed in this change.
+     */
+    @Transactional
+    public JobResponse retryDeadLetterJob(User currentUser, Long jobId) {
+        Job job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new IllegalArgumentException("Job not found: " + jobId));
+
+        projectService.requireRole(currentUser, job.getQueue().getProject().getId(), ProjectMember.Role.MEMBER);
+
+        if (job.getStatus() != Job.Status.DEAD_LETTER) {
+            throw new IllegalStateException(
+                    "Only jobs in DEAD_LETTER status can be manually retried (current status: " + job.getStatus() + ")");
+        }
+
+        DeadLetterQueue dlq = deadLetterQueueRepository.findByJobId(jobId)
+                .orElseThrow(() -> new IllegalStateException("No dead-letter-queue record found for job: " + jobId));
+
+        job.setStatus(Job.Status.QUEUED);
+        job.setAttemptCount(0);
+        job.setClaimedByWorker(null);
+        job.setRunAfter(LocalDateTime.now());
+        Job saved = jobRepository.save(job);
+
+        dlq.setRetriedManually(true);
+        deadLetterQueueRepository.save(dlq);
+
+        eventPublisher.publishJobEvent(saved, JobEventMessage.EventType.RETRY_SCHEDULED, null,
+                "Manually retried from Dead Letter Queue");
+
+        return toJobResponse(saved);
+    }
+
+    private DeadLetterQueueResponse toDeadLetterQueueResponse(DeadLetterQueue dlq) {
+        Job job = dlq.getJob();
+        return new DeadLetterQueueResponse(
+                dlq.getId(),
+                job.getId(),
+                job.getQueue().getId(),
+                job.getType(),
+                readPayload(job.getPayload()),
+                job.getAttemptCount(),
+                job.getMaxAttempts(),
+                dlq.getReason(),
+                dlq.getMovedAt(),
+                dlq.getRetriedManually()
+        );
     }
 }
