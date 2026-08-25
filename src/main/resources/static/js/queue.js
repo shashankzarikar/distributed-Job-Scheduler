@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('back-link').href = projectId ? `/dashboard.html` : '/dashboard.html';
     document.getElementById('dlq-link').href = `/dlq.html?queueId=${queueId}&queueName=${encodeURIComponent(queueName)}`;
 
+    initCharts();
     loadJobs();
     loadStats();
     statsPollHandle = setInterval(loadStats, 5000);
@@ -40,6 +41,7 @@ async function loadStats() {
             <div class="stat-box"><div class="num">${stats.failedCount}</div><div class="label">Failed</div></div>
             <div class="stat-box"><div class="num">${stats.deadLetterCount}</div><div class="label">Dead Letter</div></div>
         `;
+        updateCharts(stats);
     } catch (err) {
         // Non-fatal — stats are supplementary; don't interrupt the job table for a stats blip.
         console.warn('Failed to load queue stats:', err.message);
@@ -235,4 +237,82 @@ function escapeHtml(str) {
 function formatDate(iso) {
     if (!iso) return '';
     return new Date(iso).toLocaleString();
+}
+
+// ---------- Charts (Chart.js) ----------
+let statusChart = null;
+let throughputChart = null;
+let lastCompletedCount = null;
+const THROUGHPUT_WINDOW = 12; // keep the last 12 polls (~1 minute at 5s intervals)
+const throughputLabels = [];
+const throughputData = [];
+
+function initCharts() {
+    const statusCtx = document.getElementById('status-chart').getContext('2d');
+    statusChart = new Chart(statusCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Queued', 'Running', 'Completed', 'Failed', 'Dead Letter'],
+            datasets: [{
+                label: 'Jobs',
+                data: [0, 0, 0, 0, 0],
+                backgroundColor: ['#e0b84b', '#5b8cff', '#3ecf8e', '#e5566d', '#e5566d']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#9aa1ac' }, grid: { color: '#262b35' } },
+                y: { beginAtZero: true, ticks: { color: '#9aa1ac', precision: 0 }, grid: { color: '#262b35' } }
+            }
+        }
+    });
+
+    const throughputCtx = document.getElementById('throughput-chart').getContext('2d');
+    throughputChart = new Chart(throughputCtx, {
+        type: 'line',
+        data: {
+            labels: throughputLabels,
+            datasets: [{
+                label: 'Completed',
+                data: throughputData,
+                borderColor: '#3ecf8e',
+                backgroundColor: 'rgba(62,207,142,0.15)',
+                tension: 0.3,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#9aa1ac' }, grid: { color: '#262b35' } },
+                y: { beginAtZero: true, ticks: { color: '#9aa1ac', precision: 0 }, grid: { color: '#262b35' } }
+            }
+        }
+    });
+}
+
+function updateCharts(stats) {
+    if (!statusChart || !throughputChart) return;
+
+    statusChart.data.datasets[0].data = [
+        stats.queuedCount, stats.runningCount, stats.completedCount, stats.failedCount, stats.deadLetterCount
+    ];
+    statusChart.update();
+
+    // Throughput: delta of completedCount since the last poll. First poll after
+    // page load has no prior value to diff against, so it's skipped (shows 0
+    // rather than a misleading spike of "all jobs ever completed").
+    const delta = (lastCompletedCount === null) ? 0 : Math.max(0, stats.completedCount - lastCompletedCount);
+    lastCompletedCount = stats.completedCount;
+
+    throughputLabels.push(new Date().toLocaleTimeString());
+    throughputData.push(delta);
+    if (throughputLabels.length > THROUGHPUT_WINDOW) {
+        throughputLabels.shift();
+        throughputData.shift();
+    }
+    throughputChart.update();
 }

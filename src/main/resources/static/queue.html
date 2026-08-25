@@ -28,6 +28,17 @@
 
     <div id="stats-row" class="stat-row"></div>
 
+    <div class="card-grid" style="grid-template-columns: 1fr 1fr; margin-top:20px;">
+        <div class="card">
+            <h3 style="margin-bottom:12px;">Status Breakdown</h3>
+            <canvas id="status-chart" height="180"></canvas>
+        </div>
+        <div class="card">
+            <h3 style="margin-bottom:12px;">Throughput (completed jobs / interval)</h3>
+            <canvas id="throughput-chart" height="180"></canvas>
+        </div>
+    </div>
+
     <div class="flex-between" style="margin-top:20px;">
         <h2>Jobs</h2>
         <button onclick="toggleCreateJob()">+ New Immediate Job</button>
@@ -53,6 +64,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
 <script src="/js/api.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="/js/queue.js"></script>
 </body>
 </html>
