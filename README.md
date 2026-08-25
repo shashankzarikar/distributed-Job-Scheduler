@@ -6,7 +6,7 @@
 ![WebSocket](https://img.shields.io/badge/WebSocket-STOMP%2FSockJS-informational)
 ![Status](https://img.shields.io/badge/status-complete-success)
 
-A production-inspired backend system for reliably executing asynchronous background jobs across multiple concurrent workers — similar in spirit to Celery or Sidekiq. Built as a technical assignment for the Codity.ai Graduate Trainee (SDE 1) placement.
+A production-inspired backend system for reliably executing asynchronous background jobs across multiple concurrent workers — similar in spirit to Celery or Sidekiq.
 
 **Live demo:** _[URL to be added after deployment]_
 ---
