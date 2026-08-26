@@ -112,9 +112,22 @@ public class JobOutcomeHandler {
             job.setClaimedByWorker(null);
             jobRepository.save(job);
 
-            DeadLetterQueue dlq = new DeadLetterQueue();
-            dlq.setJob(job);
+            // A job can be manually retried (JobService.retryDeadLetterJob) and then fail
+            // again later — reuse the existing DLQ row for this job_id instead of inserting
+            // a second one, since dead_letter_queue.job_id is unique. Previously this branch
+            // always called `new DeadLetterQueue()`, which threw a DataIntegrityViolationException
+            // on the second dead-letter of the same job and — because this whole method is
+            // @Transactional — rolled back the job status update above too, leaving the job
+            // stuck in RUNNING and re-triggering this same failure on every subsequent Reaper poll.
+            DeadLetterQueue dlq = deadLetterQueueRepository.findByJobId(job.getId())
+                    .orElseGet(() -> {
+                        DeadLetterQueue fresh = new DeadLetterQueue();
+                        fresh.setJob(job);
+                        return fresh;
+                    });
             dlq.setReason(reason + " (attempts exhausted: " + newAttemptCount + "/" + job.getMaxAttempts() + ")");
+            dlq.setMovedAt(LocalDateTime.now());
+            dlq.setRetriedManually(false); // this is a fresh failure — reset so the DLQ view reflects "not yet retried since this dead-letter"
             deadLetterQueueRepository.save(dlq);
 
             writeLog(job, JobLog.Level.ERROR,
