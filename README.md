@@ -90,42 +90,19 @@ For the architecture diagram and broader system context, see [`docs/architecture
 ### Architecture diagram
 
 ```mermaid
-flowchart TB
-    Client[Dashboard / API Clients] --> API[REST API Layer]
-    API --> SVC[Service Layer]
-    SVC -->|validate + RBAC| Project[Projects / Queues / Jobs]
-    SVC -->|job submission| Queue[Queue State]
-    SVC -->|metrics + events| WS[WebSocket Topics]
+flowchart TD
+    Frontend["Dashboard Frontend"] -->|"REST + JWT"| API["REST API Layer"]
+    Frontend -->|"WebSocket"| WS(["Live Updates<br/>/topic/queues/*, /topic/workers"])
 
-    subgraph Scheduler[Scheduling Layer]
-        SchedulerSvc[Scheduler Service]
-        Scheduled[scheduled_jobs]
-        SchedulerSvc -->|promote due jobs| JobsTable[jobs]
-        Scheduled -->|due rows| SchedulerSvc
-    end
+    API --> Service["Service Layer<br/>(RBAC, CRUD)"]
+    Service --> DB[("MySQL")]
 
-    subgraph Worker[Worker Engine]
-        Poller[Queue Poller]
-        Claim[Atomic Claim via SKIP LOCKED]
-        WorkerPool[Worker Thread Pool]
-        Heartbeats[Heartbeat + Reaper]
-        Poller --> Claim --> WorkerPool
-        WorkerPool --> Heartbeats
-    end
+    Scheduler["Scheduler"] -->|"promote due jobs<br/>(SKIP LOCKED)"| DB
+    Worker["Worker Engine<br/>(claim → execute → retry/DLQ)"] -->|"SKIP LOCKED"| DB
+    Reaper["Reaper<br/>(stale job detection)"] --> DB
 
-    Queue --> Poller
-    JobsTable --> Poller
-    WorkerPool --> Exec[Job Execution]
-    Exec -->|success / fail| Outcome[Retry / DLQ / Completion Flow]
-    Outcome --> DB[(MySQL)]
-    DB -->|state updates| SVC
-    DB -->|job data| Dashboard[Dashboard Frontend]
-    Dashboard --> WS
-    WS --> Client
-
-    Outcome --> DLQ[Dead Letter Queue]
-    Reaper[Reaper Service] -->|stale worker detection| DB
-    Reaper --> Outcome
+    Worker --> WS
+    Reaper --> WS
 ```
 
 ---
