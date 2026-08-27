@@ -488,7 +488,7 @@ distributed-job-scheduler/
 │   ├── schema.sql                # Full DDL for all tables, indexes, and constraints
 │   ├── api_reference.md          # API endpoint summary and usage notes
 │   ├── evalutation_mapping.md    # Requirement-to-implementation evaluation mapping
-│   └── design-decisions.md       # Full rationale, alternatives considered, incident writeups
+│   └── design_decisions.md       # Full rationale, alternatives considered, incident writeups
 ├── test/
 │   ├── test_worker_engine.sh
 │   ├── test_dlq.sh
@@ -520,7 +520,7 @@ distributed-job-scheduler/
 A few reliability details worth calling out explicitly, since they're the kind of thing "Reliability & Concurrency" evaluation criteria are meant to test:
 
 - **Atomic claiming and promotion both share a single transaction boundary** with their `SKIP LOCKED` fetch, so the row locks stay held through the write step — a fetch-then-write split across two transactions would silently reopen the race the locking is meant to prevent.
-- **A real production-blocking bug was found and fixed during development:** a duplicate insert into `dead_letter_queue` (a job dead-lettered a second time after a manual retry) violated that table's unique constraint, rolled back the whole transaction — including a status update that had already executed — and left the job stuck in `RUNNING` forever, which the Reaper then rediscovered and retried identically every ~15 seconds, indefinitely. Fixed by finding-or-creating the DLQ row instead of always inserting. Full incident writeup in `docs/design-decisions.md`.
+- **A real production-blocking bug was found and fixed during development:** a duplicate insert into `dead_letter_queue` (a job dead-lettered a second time after a manual retry) violated that table's unique constraint, rolled back the whole transaction — including a status update that had already executed — and left the job stuck in `RUNNING` forever, which the Reaper then rediscovered and retried identically every ~15 seconds, indefinitely. Fixed by finding-or-creating the DLQ row instead of always inserting. Full incident writeup in `docs/design_decisions.md`. 
 - **A silent timezone bug** (`serverTimezone=UTC` in the JDBC URL, while the JVM ran in IST) shifted every stored timestamp by 5.5 hours without throwing any error, corrupting delay/schedule/cron timing calculations. This class of bug — wrong-but-plausible data with no error signal — is treated as more dangerous than a loud failure, and is exactly why direct database inspection (not just trusting API responses) is a standing verification habit throughout this project.
 
 ---

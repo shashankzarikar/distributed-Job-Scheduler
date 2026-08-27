@@ -66,7 +66,7 @@ Understanding this one flow explains most of the architecture.
 
 **Why a two-row staging model for delayed/scheduled/cron jobs, instead of one `jobs` table with a future `run_after`?** It keeps the live `jobs` table — the one every worker poll scans — free of large volumes of not-yet-relevant future work, and it gives cron jobs a clean, auditable trail of "this recurrence was promoted, then this next one was scheduled," rather than one row being silently mutated in place across many future runs.
 
-For the full reasoning behind these choices — including alternatives that were considered and rejected, and every real bug found during development — see `docs/design-decisions.md`. For the visual component breakdown, see `docs/architecture.md`.
+For the full reasoning behind these choices — including alternatives that were considered and rejected, and every real bug found during development — see `docs/design_decisions.md`. For the visual component breakdown, see `docs/architecture.md`. 
 
 ---
 
@@ -77,11 +77,11 @@ For the full reasoning behind these choices — including alternatives that were
 | Backend | Java 23, Spring Boot 4 | Deepest existing expertise; reduces implementation risk while keeping full control over concurrency primitives |
 | Database | MySQL 8.0+ | Supports `SELECT ... FOR UPDATE SKIP LOCKED` and native JSON columns — meets every relational design requirement (PKs/FKs/indexes/normalization/cascades); chosen over Postgres purely for familiarity, not capability |
 | Persistence | Spring Data JPA + Hibernate | Explicit, code-level entity relationships that double as living schema documentation |
-| Security | Spring Security + JWT | Stateless auth; RBAC is layered on top at the service level rather than via Spring's global role system (see design-decisions.md, 3.6) |
+| Security | Spring Security + JWT | Stateless auth; RBAC is layered on top at the service level rather than via Spring's global role system (see design_decisions.md, 3.6) |
 | Realtime | Spring WebSocket (STOMP/SockJS) | Live dashboard updates without polling for state changes |
 | Frontend | HTML/CSS/vanilla JS + Chart.js, served by the same Spring Boot app | No separate frontend server, no build step, no CORS — kept deliberately simple since the backend/reliability work is the core focus of this project |
 
-Full reasoning for each of these — including options considered and rejected — is in `docs/design-decisions.md`.
+Full reasoning for each of these — including options considered and rejected — is in `docs/design_decisions.md`. 
 
 ---
 
