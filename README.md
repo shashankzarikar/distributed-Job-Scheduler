@@ -13,7 +13,7 @@ For a broader product overview and project context, see [`docs/project_overview.
 
 Built as a technical assignment, but engineered to the standard of a real internal tooling service: every reliability edge case (crashed workers, duplicate inserts, timezone bugs, transaction-boundary races) below was found through deliberate testing and fixed, not assumed away.
 
-**Live demo:** _[URL to be added after deployment]_
+**Live demo:** https://distributed-job-scheduler-0uuv.onrender.com
 
 ---
 
